@@ -415,7 +415,7 @@
             this.MinimizeBox = false;
             this.Name = "ccLibFrontend";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-            this.Text = "Arduino CC-Debugger for BLE112, BLE113 ";
+            this.Text = "Arduino CC-Debugger for BLE112, BLE113, HM-10";
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.ccLibFrontend_FormClosing);
             this.Load += new System.EventHandler(this.Form1_Load);
             this.groupBox1.ResumeLayout(false);

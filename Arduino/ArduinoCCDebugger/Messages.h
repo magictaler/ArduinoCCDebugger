@@ -9,9 +9,9 @@
 #ifndef Messages_h
 #define Messages_h
 
-const char FIRMWARE_REV[] PROGMEM = "V1.0";
-const char FIRMWARE_DATE[] PROGMEM = "13.02.16";
-const char PRODUCT_NAME[] PROGMEM = "Arduino CC-Debugger for CC2540/41 SOC (BLE112, BLE113)";
+const char FIRMWARE_REV[] PROGMEM = "V1.1";
+const char FIRMWARE_DATE[] PROGMEM = "20.06.16";
+const char PRODUCT_NAME[] PROGMEM = "Arduino CC-Debugger for CC2540/41 SOC (BLE112, BLE113, HM-10)";
 const char RC_OK[] PROGMEM = "OK";
 const char SPACE_CHAR[] PROGMEM = " ";
 const char OPENING_BRACKET[] PROGMEM = " [";

@@ -19,7 +19,7 @@
 #define MAX_BURST_WRITE 2048
 #define BIN_PACKET_HDR 1
 #define BIN_PACKET_SMPL_FTR 2
-#define BIN_PACKET_FTR 4
+#define BIN_PACKET_FTR 5
 #define DEVICE_INFO_ADDR 0x780E
 #define DEVICE_INFO_SZ 6
 #define BLUEGIGA_INFO_SZ 0x40
@@ -85,7 +85,7 @@ public:
   /**
    * Initialize CmdProc class
    */
-  CmdProc(int pinRST, int pinDC, int pinDD_I, int pinDD_O);
+  CmdProc(int pinRST, int pinDC, int pinDD);
 
   ////////////////////////////
   // High-Level interaction

@@ -12,8 +12,7 @@
 
 // Pinout configuration
 int CC_RST   = 6;
-int CC_DD_I  = 5;
-int CC_DD_O  = 4;
+int CC_DD    = 4;
 int CC_DC    = 3;
 
 byte inCmd;
@@ -28,7 +27,7 @@ void setup()
 {
     // Initialize serial port
     Serial.begin(115200);
-    cmdProc = new CmdProc( CC_RST, CC_DC, CC_DD_I, CC_DD_O );
+    cmdProc = new CmdProc( CC_RST, CC_DC, CC_DD );
 }
 
 /**

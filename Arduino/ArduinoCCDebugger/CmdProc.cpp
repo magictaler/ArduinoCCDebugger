@@ -20,7 +20,7 @@
  
 #include "CmdProc.h"
 
-CmdProc::CmdProc( int pinRST, int pinDC, int pinDD_I, int pinDD_O ) : CCDebugger (pinRST, pinDC, pinDD_I, pinDD_O)
+CmdProc::CmdProc( int pinRST, int pinDC, int pinDD ) : CCDebugger (pinRST, pinDC, pinDD)
 {
     // Enter debug mode
     enter();
@@ -80,7 +80,7 @@ bool CmdProc::read_cmd( byte block_num )
         unsigned short checksum = 0;
         
         // adding header + footer to accomodate 1 byte for packet type, 
-        //1 byte block number, 1 byte for total blocks and 2 byte checksum
+        //1 byte block number, 2 bytes for total blocks and 2 byte checksum
         unsigned short packet_len = IO_BUF_SZ + BIN_PACKET_HDR + BIN_PACKET_FTR; 
         
         generateHeader(CMD_READ, packet_len);
@@ -91,9 +91,18 @@ bool CmdProc::read_cmd( byte block_num )
             checksum += ioBuf[i];
         }
         Serial.write(block_num);
-        Serial.write(total_blocks);        
-        checksum += block_num;
-        checksum += total_blocks;
+        checksum += block_num;        
+        
+        //Serial.write(total_blocks);        
+        //checksum += total_blocks;
+        
+        Serial.write((total_blocks >> 8) & 0xFF);
+        checksum += (total_blocks >> 8) & 0xFF;
+
+        Serial.write(total_blocks & 0xFF);
+        checksum += (total_blocks & 0xFF);
+        
+        
         generateFooter(checksum);
     }
     return true;  
@@ -788,7 +797,7 @@ bool CmdProc::ble_store_cmd(byte block_num)
         unsigned short checksum = 0;
         
         // adding header + footer to accomodate 1 byte for packet type, 
-        //1 byte block number, 1 byte for total blocks and 2 byte checksum
+        //1 byte block number, 2 byte for total blocks and 2 byte checksum
         unsigned short packet_len = block_size + BIN_PACKET_HDR + BIN_PACKET_FTR; 
 
         //TODO: should we include starting addr for consistency sake on frontend side?        
@@ -801,9 +810,17 @@ bool CmdProc::ble_store_cmd(byte block_num)
             checksum += ioBuf[i];
         }
         Serial.write(block_num);
-        Serial.write(total_blocks);        
         checksum += block_num;
-        checksum += total_blocks;
+        
+        //Serial.write(total_blocks);        
+        //checksum += total_blocks;
+
+        Serial.write((total_blocks >> 8) & 0xFF);
+        checksum += (total_blocks >> 8) & 0xFF;
+
+        Serial.write(total_blocks & 0xFF);
+        checksum += (total_blocks & 0xFF);
+
         generateFooter(checksum);
     }    
     return true;
@@ -925,7 +942,7 @@ bool CmdProc::chip_info_cmd(void)
     byte chipInfo[2];
     if (sizeof(chipInfo) != readXDATA(CHIP_INFO_ADDR, sizeof(chipInfo), chipInfo)) return false;
     
-    unsigned short packet_len = sizeof (chip_id) + 3 + BIN_PACKET_HDR + BIN_PACKET_SMPL_FTR; 
+    unsigned short packet_len = sizeof (chip_id) + 4 + BIN_PACKET_HDR + BIN_PACKET_SMPL_FTR; 
     unsigned short checksum = 0;
     
     generateHeader(CMD_CHIP_INFO, packet_len);
@@ -937,9 +954,12 @@ bool CmdProc::chip_info_cmd(void)
     Serial.write(chip_id & 0xFF);
     checksum += chip_id & 0xFF;
     
-    byte flashSizeKb  = (byte)(powint(2, 4 + ((chipInfo[0] & FLASH_SZ_KB_MASK) >> 4)));
-    Serial.write(flashSizeKb);
-    checksum += flashSizeKb;
+    unsigned int flashSizeKb  = (powint(2, 4 + ((chipInfo[0] & FLASH_SZ_KB_MASK) >> 4)));
+    Serial.write((flashSizeKb >> 8) & 0xFF);
+    checksum += (flashSizeKb >> 8) & 0xFF;
+
+    Serial.write(flashSizeKb & 0xFF);
+    checksum += (flashSizeKb & 0xFF);
     
     byte sramSizeKb = (byte)((chipInfo[1] & SRAM_SZ_MASK) + 1);
     Serial.write(sramSizeKb);

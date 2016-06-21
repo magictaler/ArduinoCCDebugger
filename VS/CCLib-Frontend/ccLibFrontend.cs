@@ -26,7 +26,8 @@ namespace CCLibFrontend
 {
     public partial class ccLibFrontend : Form
     {
-        public byte CHIP_SIGNATURE = 0x8D;
+        public byte CHIP_CC2540_SIGNATURE = 0x8D;
+        public byte CHIP_CC2541_SIGNATURE = 0x41;
 
         private StreamWriter _LogFile;
         private BinaryWriter _BinFile;
@@ -38,6 +39,10 @@ namespace CCLibFrontend
         private long _flashSize;
         private ushort _arduino_ser_buf_size;
         private DateTime _startTime;
+
+        private bool _hwVersionBlank;
+        private bool _btAddrBlank;
+        private bool _licenceBlank;
 
         public ccLibFrontend()
         {
@@ -357,8 +362,8 @@ namespace CCLibFrontend
         }
 
 
-        delegate void SetFlashSizeTBoxCallback(byte flashSize);
-        public void SetFlashSizeTBox(byte flashSize)
+        delegate void SetFlashSizeTBoxCallback(int flashSize);
+        public void SetFlashSizeTBox(int flashSize)
         {
             if (this.flashSizeTBox.InvokeRequired)
             {
@@ -430,9 +435,9 @@ namespace CCLibFrontend
                             case MODE.CHIP_INFO:
                                 {
                                     SetChipIDTBox((ushort)((packet.Payload[0] << 8) | packet.Payload[1]));
-                                    SetFlashSizeTBox(packet.Payload[2]);
-                                    SetSramSizeTBox(packet.Payload[3]);
-                                    SetUsbTBox(packet.Payload[4] != 0);
+                                    SetFlashSizeTBox((packet.Payload[2] << 8) | packet.Payload[3]);
+                                    SetSramSizeTBox(packet.Payload[4]);
+                                    SetUsbTBox(packet.Payload[5] != 0);
 
                                     reqLicense(MODE.LICENSE);
                                 }
@@ -475,11 +480,11 @@ namespace CCLibFrontend
                                     if (packet.Cmd == (int)COMMANDS.CMD_CHIP_INFO)
                                     {
                                         SetChipIDTBox((ushort)((packet.Payload[0] << 8) | packet.Payload[1]));
-                                        SetFlashSizeTBox(packet.Payload[2]);
-                                        SetSramSizeTBox(packet.Payload[3]);
-                                        SetUsbTBox(packet.Payload[4] != 0);
+                                        SetFlashSizeTBox((packet.Payload[2] << 8) | packet.Payload[3]);
+                                        SetSramSizeTBox(packet.Payload[4]);
+                                        SetUsbTBox(packet.Payload[5] != 0);
 
-                                        _flashSize = 1024L * packet.Payload[2];
+                                        _flashSize = 1024L * (packet.Payload[2] << 8) | packet.Payload[3];
 
                                         reqHwVer(MODE.READ);
                                     }
@@ -525,12 +530,12 @@ namespace CCLibFrontend
                                             UpdateProgress(100, 0);
                                         }
 
-                                        _BinFile.Write(packet.Payload, 0, packet.Payload.Length - 2);
+                                        _BinFile.Write(packet.Payload, 0, packet.Payload.Length - 3);
                                         _BinFile.Flush();
 
-                                        _blockNum = packet.Payload[packet.Payload.Length - 2]; //second last byte in payload
+                                        _blockNum = packet.Payload[packet.Payload.Length - 3]; //third last byte in payload
                                         _blockNum++;
-                                        int totalBlocks = packet.Payload[packet.Payload.Length - 1]; //last byte in payload
+                                        int totalBlocks = (packet.Payload[packet.Payload.Length - 2] << 8) | (packet.Payload[packet.Payload.Length - 1]); //last and second last byte in payload
 
                                         UpdateProgress(totalBlocks, _blockNum);
 
@@ -558,13 +563,13 @@ namespace CCLibFrontend
                                 if (packet.Cmd == (int)COMMANDS.CMD_CHIP_INFO)
                                 {
                                     SetChipIDTBox((ushort)((packet.Payload[0] << 8) | packet.Payload[1]));
-                                    SetFlashSizeTBox(packet.Payload[2]);
-                                    SetSramSizeTBox(packet.Payload[3]);
-                                    SetUsbTBox(packet.Payload[4] != 0);
+                                    SetFlashSizeTBox((packet.Payload[2] << 8) | packet.Payload[3]);
+                                    SetSramSizeTBox(packet.Payload[4]);
+                                    SetUsbTBox(packet.Payload[5] != 0);
 
-                                    _flashSize = 1024L * packet.Payload[2];
+                                    _flashSize = 1024L * (packet.Payload[2] << 8) | packet.Payload[3];
 
-                                    if (packet.Payload[0] != CHIP_SIGNATURE)
+                                    if (packet.Payload[0] != CHIP_CC2540_SIGNATURE && packet.Payload[0] != CHIP_CC2541_SIGNATURE)
                                     {
                                         SetStatusLabel("Incorrect chip.");
                                         MessageBox.Show("Incorrect chip ID or missing target platform", "Incorrect chip", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -587,11 +592,13 @@ namespace CCLibFrontend
                                     if (isBlank(packet.Payload))
                                     {
                                         MessageBox.Show("HW version is blank, skipping copying it from the chip");
+                                        _hwVersionBlank = true;
                                     }
                                     else
                                     {
                                         SetHwVersionTBox(packet.Payload[0]);
                                         _image[_flashSize - (int)FLD_OFFSETS.HW_VER_OFFSET] = packet.Payload[0];
+                                        _hwVersionBlank = false;
                                     }
 
                                     SetStatusLabel("Reading IEEE address...");
@@ -609,6 +616,7 @@ namespace CCLibFrontend
                                     if (isBlank(packet.Payload))
                                     {
                                         MessageBox.Show("BT address is blank, skipping copying it from the chip");
+                                        _btAddrBlank = true;
                                     }
                                     else
                                     {
@@ -618,6 +626,7 @@ namespace CCLibFrontend
                                         {
                                             _image[_flashSize - (int)FLD_OFFSETS.BT_ADDR + i] = packet.Payload[i];
                                         }
+                                        _btAddrBlank = false;
                                     }
 
                                     SetStatusLabel("Reading license...");
@@ -627,6 +636,7 @@ namespace CCLibFrontend
                                 {
                                     if (isBlank(packet.Payload))
                                     {
+                                        _licenceBlank = true;
                                         MessageBox.Show("License is blank, skipping copying it from the chip");
                                     }
                                     else
@@ -638,20 +648,43 @@ namespace CCLibFrontend
                                         {
                                             _image[_flashSize - (int)FLD_OFFSETS.LICENSE + i] = packet.Payload[i];
                                         }
+
+                                        _licenceBlank = false;
                                     }
 
-                                    if (!restoreFromBackup()) break;
+                                    bool noBLEStore = false;
+                                    if (_licenceBlank && _btAddrBlank && _hwVersionBlank)
+                                    {
+                                        if (MessageBox.Show("Is it HM-10 module?", "Module autodetection", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != System.Windows.Forms.DialogResult.Yes)
+                                            break;
+                                        else
+                                            noBLEStore = true;
+                                    }
+                                    else
+                                    {
+
+                                        if (!restoreFromBackup()) break;
+                                    }
 
                                     if (MessageBox.Show("This is going to ERASE and REPROGRAM the chip. Are you sure?",
                                         "Ready for programming", MessageBoxButtons.YesNo, MessageBoxIcon.Question) ==
                                         System.Windows.Forms.DialogResult.Yes)
                                     {
-                                        SetStatusLabel("Backing up BLE store...");
+                                        if (noBLEStore)
+                                        {
+                                            //possibly blank chip, skip back up operation
+                                            writeMergedBin();
+                                            reqErase(MODE.WRITE);
+                                        }
+                                        else
+                                        {
+                                            SetStatusLabel("Backing up BLE store...");
 
-                                        _blockNum = 0;
-                                        byte[] writeBuf = new byte[] { (byte)COMMANDS.CMD_BLE_STORE, (byte)_blockNum, 0, 0 };
-                                        serialPort1.Write(writeBuf, 0, writeBuf.Length);
-                                        UpdateProgress(100, 0);
+                                            _blockNum = 0;
+                                            byte[] writeBuf = new byte[] { (byte)COMMANDS.CMD_BLE_STORE, (byte)_blockNum, 0, 0 };
+                                            serialPort1.Write(writeBuf, 0, writeBuf.Length);
+                                            UpdateProgress(100, 0);
+                                        }
                                     }
 
                                 }
@@ -666,8 +699,8 @@ namespace CCLibFrontend
                                     else
                                     {
 
-                                        _blockNum = packet.Payload[packet.Payload.Length - 2]; //second last byte in payload
-                                        long startAddr = 0x18000 + _blockNum * (packet.Payload.Length - 2);
+                                        _blockNum = packet.Payload[packet.Payload.Length - 3]; //third last byte in payload
+                                        long startAddr = 0x18000 + _blockNum * (packet.Payload.Length - 3);
 
                                         for (int i = 0; i < packet.Payload.Length - 2; i++)
                                         {
@@ -675,7 +708,9 @@ namespace CCLibFrontend
                                         }
 
                                         _blockNum++;
-                                        int totalBlocks = packet.Payload[packet.Payload.Length - 1]; //last byte in payload
+
+                                        //int totalBlocks = packet.Payload[packet.Payload.Length - 1]; //last byte in payload
+                                        int totalBlocks = (packet.Payload[packet.Payload.Length - 2] << 8) | (packet.Payload[packet.Payload.Length - 1]); //last and second last byte in payload
 
                                         UpdateProgress(totalBlocks, _blockNum);
 
@@ -1026,14 +1061,15 @@ namespace CCLibFrontend
                 }
                 else
                 {
-                    int total_size = 1024 * 128;
-                    BinaryReader br = new BinaryReader(File.Open(openFileDialog1.FileName, FileMode.Open));
-                    _image = new byte[total_size];
-                    if (total_size != br.Read(_image, 0, total_size))
-                    {
-                        MessageBox.Show("Incorrect binary file size");
-                        EnableButtons();
-                    }
+                    //int total_size = 1024 * 128;
+                    //BinaryReader br = new BinaryReader(File.Open(openFileDialog1.FileName, FileMode.Open));
+                    //_image = new byte[total_size];
+                    //if (total_size != br.Read(_image, 0, total_size))
+                    //{
+                        //MessageBox.Show("Incorrect binary file size");
+                        //EnableButtons();
+                    //}
+                    _image = File.ReadAllBytes(openFileDialog1.FileName);
                 }
 
                 string readFilePath = Path.Combine(

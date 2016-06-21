@@ -32,23 +32,20 @@
 /**
  * Initialize CC Debugger class
  */
-CCDebugger::CCDebugger( int pinRST, int pinDC, int pinDD_I, int pinDD_O ) 
+CCDebugger::CCDebugger( int pinRST, int pinDC, int pinDD ) 
 {
 
   // Keep references
   this->pinRST  = pinRST;
   this->pinDC   = pinDC;
-  this->pinDD_I = pinDD_I;
-  this->pinDD_O = pinDD_O;
+  this->pinDD   = pinDD;
   
   // Prepare CC Pins
   pinMode(pinDC,        OUTPUT);
-  pinMode(pinDD_I,      INPUT);
-  pinMode(pinDD_O,      OUTPUT);
+  pinMode(pinDD,        OUTPUT);
   pinMode(pinRST,       OUTPUT);
   digitalWrite(pinDC,   LOW);
-  digitalWrite(pinDD_I, LOW); // No pull-up
-  digitalWrite(pinDD_O, LOW);
+  digitalWrite(pinDD,   LOW);
   digitalWrite(pinRST,  LOW);
 
   // Prepare default direction
@@ -58,18 +55,14 @@ CCDebugger::CCDebugger( int pinRST, int pinDC, int pinDD_I, int pinDD_O )
   active = true;
   
   this->portRST_Out = portOutputRegister(digitalPinToPort(pinRST));
-  this->portDC_Out = portOutputRegister(digitalPinToPort(pinDC));  
-  this->portDD_O_Out = portOutputRegister(digitalPinToPort(pinDD_O));    
-  this->portDD_I_Out = portOutputRegister(digitalPinToPort(pinDD_I));      
-  
-  this->portDD_I_In = portInputRegister(digitalPinToPort(pinDD_I));      
-  
-  this->portDD_O_Mode = portModeRegister(digitalPinToPort(pinDD_O));
+  this->portDC_Out = portOutputRegister(digitalPinToPort(pinDC));
+  this->portDD_Out = portOutputRegister(digitalPinToPort(pinDD));
+  this->portDD_In = portInputRegister(digitalPinToPort(pinDD));
+  this->portDD_Mode = portModeRegister(digitalPinToPort(pinDD));
   
   this->bitRST = digitalPinToBitMask(pinRST);
   this->bitDC = digitalPinToBitMask(pinDC);  
-  this->bitDD_O = digitalPinToBitMask(pinDD_O);  
-  this->bitDD_I = digitalPinToBitMask(pinDD_I);  
+  this->bitDD = digitalPinToBitMask(pinDD);  
 };
 
 inline void CCDebugger::pinModeFast(volatile uint8_t* portOut, volatile uint8_t* portModeReg, uint8_t bit, uint8_t mode)
@@ -133,12 +126,10 @@ void CCDebugger::setActive( boolean on )
 
     // Prepare CC Pins
     pinMode(pinDC,        OUTPUT);
-    pinMode(pinDD_I,      INPUT);
-    pinMode(pinDD_O,      OUTPUT);
+    pinMode(pinDD,        OUTPUT);
     pinMode(pinRST,       OUTPUT);
     digitalWrite(pinDC,   LOW);
-    digitalWrite(pinDD_I, LOW); // No pull-up
-    digitalWrite(pinDD_O, LOW);
+    digitalWrite(pinDD,   LOW);
     digitalWrite(pinRST,  LOW);
 
     // Default direction is INPUT
@@ -152,12 +143,10 @@ void CCDebugger::setActive( boolean on )
 
     // Put everything in inactive mode
     pinMode(pinDC,        INPUT);
-    pinMode(pinDD_I,      INPUT);
-    pinMode(pinDD_O,      INPUT);
+    pinMode(pinDD,        INPUT);
     pinMode(pinRST,       INPUT);
     digitalWrite(pinDC,   LOW);
-    digitalWrite(pinDD_I, LOW);
-    digitalWrite(pinDD_O, LOW);
+    digitalWrite(pinDD,   LOW);
     digitalWrite(pinRST,  LOW);
 
   }
@@ -224,46 +213,6 @@ byte CCDebugger::enter()
 
 };
 
-/**
- * Write a byte to the debugger
- */
-inline byte CCDebugger::write( byte data ) 
-{
-  if (!active) {
-    errorFlag = 1;
-    return 0;
-  };
-  if (!inDebugMode) {
-    errorFlag = 2;
-    return 0;
-  }
-
-  byte cnt;
-
-  // Make sure DD is on output
-  setDDDirection(OUTPUT);
-
-  // Sent bytes
-  for (cnt = 8; cnt; cnt--) {
-
-    // First put data bit on bus
-    if (data & 0x80)
-      digitalWriteFast( portDD_O_Out, bitDD_O, HIGH);  
-    else
-      digitalWriteFast( portDD_O_Out, bitDD_O, LOW);  
-
-    // Place clock on high (other end reads data)
-    digitalWriteFast( portDC_Out, bitDC, HIGH);      
-
-    // Shift & Delay
-    data <<= 1;
-
-    // Place clock down
-    digitalWriteFast( portDC_Out, bitDC, LOW);
-  }
-
-  return 0;
-}
 
 inline byte CCDebugger::writeFast( byte data ) 
 {
@@ -274,9 +223,9 @@ inline byte CCDebugger::writeFast( byte data )
 
     // First put data bit on bus
     if (data & 0x80)
-      digitalWriteFast( portDD_O_Out, bitDD_O, HIGH);  
+      digitalWriteFast( portDD_Out, bitDD, HIGH);  
     else
-      digitalWriteFast( portDD_O_Out, bitDD_O, LOW);  
+      digitalWriteFast( portDD_Out, bitDD, LOW);  
 
     // Place clock on high (other end reads data)
     digitalWriteFast( portDC_Out, bitDC, HIGH);      
@@ -317,7 +266,7 @@ inline byte CCDebugger::switchRead()
 
   // Wait for DD to go LOW (Chip is READY)
   //while (digitalRead(pinDD_I) == HIGH) {  
-  while (digitalReadFast( portDD_I_In, bitDD_I) == HIGH) {
+  while (digitalReadFast( portDD_In, bitDD) == HIGH) {
 
     // Do 8 clock cycles
     for (cnt = 8; cnt; cnt--) {
@@ -344,38 +293,6 @@ inline byte CCDebugger::switchWrite()
   return 0;
 }
 
-/**
- * Read an input byte
- */
-inline byte CCDebugger::read()
-{
-  if (!active) {
-    errorFlag = 1;
-    return 0;
-  }
-
-  byte cnt;
-  byte data = 0;
-
-  // Switch to input
-  setDDDirection(INPUT);
-
-  // Send 8 clock pulses if we are HIGH
-  for (cnt = 8; cnt; cnt--) {
-    digitalWriteFast( portDC_Out, bitDC, HIGH);      
-
-    // Shift and read
-    data <<= 1;
-    
-    if (digitalReadFast(portDD_I_In, bitDD_I) == HIGH)
-      data |= 0x01;
-
-    digitalWriteFast( portDC_Out, bitDC, LOW);      
-  }
-
-  return data;
-}
-
 inline byte CCDebugger::readFast()
 {
   byte cnt;
@@ -387,9 +304,12 @@ inline byte CCDebugger::readFast()
 
     // Shift and read
     data <<= 1;
-    
-    if (digitalReadFast(portDD_I_In, bitDD_I) == HIGH)
+
+//pinModeFast(portDD_Out, portDD_Mode, bitDD, INPUT);    
+    if (digitalReadFast(portDD_In, bitDD) == HIGH)
       data |= 0x01;
+
+//pinModeFast(portDD_Out, portDD_Mode, bitDD, OUTPUT);      
 
     digitalWriteFast( portDC_Out, bitDC, LOW);      
   }
@@ -407,17 +327,17 @@ inline void CCDebugger::setDDDirection( byte direction )
   // Switch direction if changed
   if (direction == ddIsOutput) return;
   ddIsOutput = direction;
-
+  
   // Handle new direction
-  digitalWriteFast(portDD_I_Out, bitDD_I, LOW);        
+  //digitalWriteFast(portDD_Out, bitDD, LOW);        
   if (ddIsOutput) {
     //pinMode(pinDD_O, OUTPUT);   // Enable output
-    pinModeFast(portDD_O_Out, portDD_O_Mode, bitDD_O, OUTPUT);
+    pinModeFast(portDD_Out, portDD_Mode, bitDD, OUTPUT);
   } else {
     //pinMode(pinDD_O, INPUT);    // Disable output
-    pinModeFast(portDD_O_Out, portDD_O_Mode, bitDD_O, INPUT);
+    pinModeFast(portDD_Out, portDD_Mode, bitDD, INPUT);
   }
-  digitalWriteFast(portDD_O_Out, bitDD_O, LOW);            
+  //digitalWriteFast(portDD_Out, bitDD, LOW);            
 }
 
 /////////////////////////////////////////////////////////////////////

@@ -37,7 +37,7 @@ public:
   /**
    * Initialize CC Debugger class
    */
-  CCDebugger( int pinRST, int pinDC, int pinDD_I, int pinDD_O );
+  CCDebugger( int pinRST, int pinDC, int pinDD_O );
 
 
   /**
@@ -114,7 +114,6 @@ public:
   /**
    * Write to the debugger
    */
-  inline byte write( byte data );
   inline byte writeFast( byte data );  
 
   /**
@@ -130,7 +129,6 @@ public:
   /**
    * Read from the debugger
    */
-  inline byte read();
   inline byte readFast();  
   
   inline void digitalWriteFast( volatile uint8_t* portOut, uint8_t pin, uint8_t val);
@@ -154,8 +152,7 @@ private:
    */ 
   int       pinRST;
   int       pinDC;
-  int       pinDD_I;
-  int       pinDD_O;
+  int       pinDD;
   byte      errorFlag;
   byte      ddIsOutput;
   byte      inDebugMode;
@@ -163,16 +160,13 @@ private:
   
   volatile uint8_t*   portRST_Out;
   volatile uint8_t*   portDC_Out;
-  volatile uint8_t*   portDD_I_In;
-  volatile uint8_t*   portDD_I_Out;  
-  volatile uint8_t*   portDD_O_Out;
-  
-  volatile uint8_t*   portDD_O_Mode;
+  volatile uint8_t*   portDD_Out;
+  volatile uint8_t*   portDD_In;
+  volatile uint8_t*   portDD_Mode;
   
   uint8_t   bitRST;
   uint8_t   bitDC;  
-  uint8_t   bitDD_I;  
-  uint8_t   bitDD_O;  
+  uint8_t   bitDD;  
 
 };
 
