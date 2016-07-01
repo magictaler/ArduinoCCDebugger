@@ -60,6 +60,7 @@ namespace CCLibFrontend
         CMD_HW_VER = 0x9,
         CMD_CHIP_INFO = 0xA,
         CMD_IN_BUF_SZ = 0xB,
+        CMD_WR_AND_FLUSH  = 0xC,
 
         CMD_RESPONSE_OK = 0x81,
         CMD_RESPONSE_ERR = 0x82,

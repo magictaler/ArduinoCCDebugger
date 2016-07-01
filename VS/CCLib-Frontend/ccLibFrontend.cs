@@ -756,7 +756,7 @@ namespace CCLibFrontend
                                         {
                                             int remainder = _image.Length - _blockNum * _arduino_ser_buf_size;
                                             if (remainder > 0)
-                                                reqWrite(_blockNum, _arduino_ser_buf_size, remainder);
+                                                reqWrite(_blockNum, _arduino_ser_buf_size, remainder, true);
                                         }
                                         else
                                         {
@@ -918,10 +918,11 @@ namespace CCLibFrontend
             serialPort1.Write(frame, 0, frame.Length);
         }
 
-        private void reqWrite(int block, int arduino_ser_buf_size, int payload_len)
+        private void reqWrite(int block, int arduino_ser_buf_size, int payload_len, bool flush_buf = false)
         {
             UInt16 checksum = 0;
-            byte[] frame = new byte[5] { (byte)COMMANDS.CMD_WRITE, 
+            byte cmd = flush_buf ? (byte)COMMANDS.CMD_WR_AND_FLUSH : (byte)COMMANDS.CMD_WRITE;
+            byte[] frame = new byte[5] { cmd, 
                                          (byte)((block & 0xFF00) >> 8), 
                                          (byte)(block & 0xFF),
                                          (byte)((payload_len & 0xFF00) >> 8), 
@@ -1069,7 +1070,17 @@ namespace CCLibFrontend
                         //MessageBox.Show("Incorrect binary file size");
                         //EnableButtons();
                     //}
+
                     _image = File.ReadAllBytes(openFileDialog1.FileName);
+
+                    //byte[] tmpimage = File.ReadAllBytes(openFileDialog1.FileName);
+                    //round up to the whole number of Kb as there on Arduino side writings are done in bursts of 1K
+                    //TODO: implement better logic to commit incomplete bursts
+                    //int image_sz_kb = tmpimage.Length / 1024;
+                    //if (image_sz_kb * 1024 < tmpimage.Length) image_sz_kb+=2;
+                    
+                    //_image = new byte[image_sz_kb * 1024];
+                    //Array.Copy(tmpimage, _image, tmpimage.Length);
                 }
 
                 string readFilePath = Path.Combine(

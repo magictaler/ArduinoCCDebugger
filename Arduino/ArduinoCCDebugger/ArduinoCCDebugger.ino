@@ -93,6 +93,10 @@ void loop()
     else if (inCmd == CMD_IN_BUF_SZ)
     {
         if (!cmdProc->in_buf_sz()) cmdProc->sendError(cmdProc->error());
+    }
+    else if (inCmd == CMD_WR_AND_FLUSH)
+    {
+        cmdProc->write_cmd(inCmd, c1, c2, c3, true);
     }else
     {
       cmdProc->sendError(ERR_OTHER);

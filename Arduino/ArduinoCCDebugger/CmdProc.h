@@ -101,7 +101,7 @@ public:
   bool chip_info_cmd(void);
   bool chip_erase_cmd(void);  
   bool in_buf_sz(void);
-  bool write_cmd(byte inCmd, byte c1, byte c2, byte c3);
+  bool write_cmd(byte inCmd, byte c1, byte c2, byte c3, bool forced_flush = false);
   void renderDebugStatus(byte status);
   void renderDebugConfig(byte cfg);
   /*byte error()

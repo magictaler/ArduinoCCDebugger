@@ -265,7 +265,6 @@ inline byte CCDebugger::switchRead()
   cc_delay(2);
 
   // Wait for DD to go LOW (Chip is READY)
-  //while (digitalRead(pinDD_I) == HIGH) {  
   while (digitalReadFast( portDD_In, bitDD) == HIGH) {
 
     // Do 8 clock cycles
@@ -305,11 +304,8 @@ inline byte CCDebugger::readFast()
     // Shift and read
     data <<= 1;
 
-//pinModeFast(portDD_Out, portDD_Mode, bitDD, INPUT);    
     if (digitalReadFast(portDD_In, bitDD) == HIGH)
       data |= 0x01;
-
-//pinModeFast(portDD_Out, portDD_Mode, bitDD, OUTPUT);      
 
     digitalWriteFast( portDC_Out, bitDC, LOW);      
   }
@@ -329,15 +325,11 @@ inline void CCDebugger::setDDDirection( byte direction )
   ddIsOutput = direction;
   
   // Handle new direction
-  //digitalWriteFast(portDD_Out, bitDD, LOW);        
   if (ddIsOutput) {
-    //pinMode(pinDD_O, OUTPUT);   // Enable output
     pinModeFast(portDD_Out, portDD_Mode, bitDD, OUTPUT);
   } else {
-    //pinMode(pinDD_O, INPUT);    // Disable output
     pinModeFast(portDD_Out, portDD_Mode, bitDD, INPUT);
   }
-  //digitalWriteFast(portDD_Out, bitDD, LOW);            
 }
 
 /////////////////////////////////////////////////////////////////////

@@ -32,6 +32,7 @@
 #define   CMD_HW_VER        byte(0x9)
 #define   CMD_CHIP_INFO     byte(0xA)
 #define   CMD_IN_BUF_SZ     byte(0xB)
+#define   CMD_WR_AND_FLUSH  byte(0xC)
 
 // Response constants
 #define   ANS_OK            byte(0x81)

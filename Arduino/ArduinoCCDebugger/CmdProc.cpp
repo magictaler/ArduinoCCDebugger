@@ -993,7 +993,7 @@ bool CmdProc::chip_erase_cmd(void)
     return ((bAns & 0x80) == 0);
 }
 
-bool CmdProc::write_cmd(byte inCmd, byte c1, byte c2, byte c3)
+bool CmdProc::write_cmd(byte inCmd, byte c1, byte c2, byte c3, bool forced_flush)
 {
     bool flash_result = true;
     unsigned short block_num = (unsigned short)c1 << 8;      
@@ -1044,7 +1044,7 @@ bool CmdProc::write_cmd(byte inCmd, byte c1, byte c2, byte c3)
     
     //Flash remainder if it is the last block
     unsigned long total_len = wr_addr + addr + payload_len;
-    if (total_len >= flashSizeKb * 1024L) 
+    if (total_len >= flashSizeKb * 1024L || forced_flush) 
         flash_result = writeCODE(wr_addr, IO_BUF_SZ, ioBuf, false, false);
 
     while (Serial.available() < 2) 
@@ -1064,6 +1064,4 @@ bool CmdProc::write_cmd(byte inCmd, byte c1, byte c2, byte c3)
         generateFooter(checksum);  
     }
 }
-
-
 
